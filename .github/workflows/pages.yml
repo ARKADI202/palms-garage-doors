@@ -1,0 +1,44 @@
+name: Deploy dashboard to GitHub Pages
+
+# Publishes the static dashboard (index.html / styles.css / app.js) to a
+# `gh-pages` branch. Branch-based Pages works from this non-default branch
+# without the default-branch environment restriction that the
+# "GitHub Actions" Pages source enforces.
+
+on:
+  push:
+    branches:
+      - claude/financial-dashboard-websocket-rtMpm
+      - main
+    paths:
+      - index.html
+      - styles.css
+      - app.js
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage static site
+        run: |
+          mkdir -p _site
+          cp index.html styles.css app.js _site/
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true
