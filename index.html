@@ -169,10 +169,47 @@
         </div>
       </div>
     </section>
+
+    <!-- SAYLOR (STRATEGY) vs BTC ETF FLOWS -->
+    <section class="panel panel--wide" id="treasuryPanel">
+      <div class="panel-head">
+        <span class="panel-title">SAYLOR (STRATEGY) vs BTC ETF FLOWS</span>
+        <span class="panel-sub">holdings via CoinGecko · value via live price
+          <span id="treasuryAge" class="muted">· source pending</span>
+        </span>
+      </div>
+
+      <div class="bignum" id="flowMultiple">—×</div>
+      <div class="bigsub">
+        <span id="flowSummary" class="muted">Saylor buys vs ETF net inflows —</span>
+      </div>
+
+      <div class="stats stats--3">
+        <div class="stat"><span class="stat-k">BTC Held</span><span class="stat-v" id="mstrHeld">—</span></div>
+        <div class="stat"><span class="stat-k">Held Value (live)</span><span class="stat-v up" id="mstrValue">—</span></div>
+        <div class="stat"><span class="stat-k">% of 21M Supply</span><span class="stat-v" id="mstrPct">—</span></div>
+        <div class="stat"><span class="stat-k">Bought Since Base</span><span class="stat-v" id="mstrDelta">—</span></div>
+        <div class="stat"><span class="stat-k">Saylor $ Spent</span><span class="stat-v up" id="saylorSpent">—</span></div>
+        <div class="stat"><span class="stat-k">BTC ETF Net Inflows</span><span class="stat-v" id="etfNet">—</span></div>
+      </div>
+
+      <div class="cfgrow">
+        <label class="minictl"><span>Company ticker</span><input id="companyInput" type="text" autocomplete="off" spellcheck="false" value="MSTR" /></label>
+        <label class="minictl"><span>Baseline label</span><input id="baseLabelInput" type="text" autocomplete="off" value="since Apr 2025" /></label>
+        <label class="minictl"><span>Baseline BTC held</span><input id="baseBtcInput" type="text" inputmode="numeric" autocomplete="off" placeholder="optional" /></label>
+        <label class="minictl"><span>Saylor $ bought</span><input id="saylorUsdInput" type="text" inputmode="numeric" autocomplete="off" value="6100000000" /></label>
+        <label class="minictl"><span>ETF net inflows ($)</span><input id="etfUsdInput" type="text" inputmode="numeric" autocomplete="off" value="1700000000" /></label>
+        <button id="applyTreasuryBtn" type="button">Apply</button>
+      </div>
+
+      <div class="footnote" id="treasuryNote">
+        ETF inflows &amp; $-spent are manual disclosure inputs — there is no free live feed. Holdings auto-refresh every 5&nbsp;min from CoinGecko; the held value re-prices every tick off the live BTC mark.
+      </div>
+    </section>
   </main>
 
   <footer class="foot">
-    Public market data via <code>wss://api.hyperliquid.xyz/ws</code>. Informational only — not financial advice.
+    Market data via <code>wss://api.hyperliquid.xyz/ws</code> · treasury holdings via <code>api.coingecko.com</code>. Informational only — not financial advice.
   </footer>
 
   <script src="app.js"></script>

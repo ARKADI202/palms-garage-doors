@@ -74,7 +74,7 @@ body {
 .ctl input:focus { border-color: var(--up-dim); }
 #coinInput { width: 90px; text-transform: uppercase; }
 
-#applyBtn {
+#applyBtn, #applyTreasuryBtn {
   background: var(--up-dim);
   color: #02110c;
   border: none;
@@ -86,7 +86,7 @@ body {
   border-radius: 6px;
   cursor: pointer;
 }
-#applyBtn:hover { background: var(--up); }
+#applyBtn:hover, #applyTreasuryBtn:hover { background: var(--up); }
 
 .conn {
   display: inline-flex;
@@ -209,6 +209,39 @@ body {
 }
 .footnote strong { color: var(--text); font-weight: 600; }
 
+/* ---------- treasury panel ---------- */
+.stats--3 { grid-template-columns: repeat(3, 1fr); }
+
+.cfgrow {
+  margin-top: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.minictl { display: flex; flex-direction: column; gap: 4px; }
+.minictl span {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+.minictl input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  width: 150px;
+  outline: none;
+}
+.minictl input:focus { border-color: var(--up-dim); }
+#companyInput { width: 110px; text-transform: uppercase; }
+
 /* ---------- trade tape ---------- */
 .live { font-size: 10px; letter-spacing: 1px; margin-left: 6px; }
 .live--on { color: var(--up); }
@@ -314,8 +347,8 @@ tbody tr.empty td { color: var(--muted-2); text-align: center; padding: 24px; }
   .grid { grid-template-columns: 1fr; }
   .tape { grid-template-columns: 1fr; }
   .bignum { font-size: 38px; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stats, .stats--3 { grid-template-columns: repeat(2, 1fr); }
   .controls { width: 100%; }
-  .ctl input { width: 100%; }
-  .ctl { flex: 1 1 120px; }
+  .ctl input, .minictl input { width: 100%; }
+  .ctl, .minictl { flex: 1 1 120px; }
 }

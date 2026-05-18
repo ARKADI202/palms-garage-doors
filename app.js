@@ -7,9 +7,12 @@
  * ------------------------------------------------------------------ */
 
 const WS_URL = "wss://api.hyperliquid.xyz/ws";
+const CG_URL = "https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin";
 const WINDOW_MS = 60_000;     // rolling window for tape stats
 const MAX_ROWS = 40;          // trade rows kept in the table
 const PING_MS = 30_000;       // keepalive ping interval
+const TREASURY_MS = 300_000;  // CoinGecko holdings refresh interval
+const BTC_SUPPLY = 21_000_000;
 
 const cfg = loadConfig();
 
@@ -19,9 +22,14 @@ const state = {
   reconnectAttempts: 0,
   reconnectTimer: null,
   pingTimer: null,
-  ctx: null,            // latest activeAssetCtx payload
+  ctx: null,            // latest activeAssetCtx payload for cfg.coin
+  btcCtx: null,         // activeAssetCtx for BTC (treasury valuation)
   trades: [],           // recent trades, newest first
   lastPx: null,         // last mark price (for flash direction)
+  treasury: null,       // { holdings, currentValueUsd, entryValueUsd, pctSupply }
+  treasuryAt: 0,        // last successful CoinGecko fetch (ms)
+  treasuryErr: false,   // last fetch failed
+  treasuryTimer: null,
 };
 
 /* ---------------- config / persistence ---------------- */
@@ -29,10 +37,17 @@ const state = {
 function loadConfig() {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem("dash.cfg") || "{}"); } catch (_) {}
+  const pos = (v, d) => (Number(v) > 0 ? Number(v) : d);
   return {
     coin: (saved.coin || "BTC").toUpperCase(),
-    fds: Number(saved.fds) > 0 ? Number(saved.fds) : 11_870_000_000,
-    ref: Number(saved.ref) > 0 ? Number(saved.ref) : 150,
+    fds: pos(saved.fds, 11_870_000_000),
+    ref: pos(saved.ref, 150),
+    // Treasury-vs-ETF panel (disclosure data — manual / polled, not streamed).
+    company: (saved.company || "MSTR").toUpperCase(),
+    baseLabel: saved.baseLabel || "since Apr 2025",
+    baseBtc: Number(saved.baseBtc) > 0 ? Number(saved.baseBtc) : 0,
+    saylorUsd: pos(saved.saylorUsd, 6_100_000_000),
+    etfUsd: pos(saved.etfUsd, 1_700_000_000),
   };
 }
 
@@ -86,6 +101,8 @@ function fmtTime(ms) {
 }
 
 function cls(v) { return v >= 0 ? "up" : "down"; }
+function num(v) { const n = parseFloat(v); return isFinite(n) ? n : NaN; }
+function parseNum(s) { return parseFloat(String(s).replace(/[, _$]/g, "")); }
 const $ = (id) => document.getElementById(id);
 
 /* ---------------- websocket lifecycle ---------------- */
@@ -151,21 +168,21 @@ function send(ws, obj) {
 function subscribe(ws) {
   send(ws, { method: "subscribe", subscription: { type: "activeAssetCtx", coin: cfg.coin } });
   send(ws, { method: "subscribe", subscription: { type: "trades", coin: cfg.coin } });
+  // Always keep a BTC price feed for the treasury valuation. Skip the
+  // duplicate when the user is already viewing BTC.
+  if (cfg.coin !== "BTC") {
+    send(ws, { method: "subscribe", subscription: { type: "activeAssetCtx", coin: "BTC" } });
+  }
 }
 
-/* Re-subscribe to a different coin without dropping the socket. */
-function switchCoin(prev) {
+/* Coin change: reset coin-scoped state and reconnect (also re-evaluates the
+ * BTC valuation subscription). The blip is ~1s and keeps this simple. */
+function switchCoin() {
   state.ctx = null;
   state.trades = [];
   state.lastPx = null;
   renderAll();
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    send(state.ws, { method: "unsubscribe", subscription: { type: "activeAssetCtx", coin: prev } });
-    send(state.ws, { method: "unsubscribe", subscription: { type: "trades", coin: prev } });
-    subscribe(state.ws);
-  } else {
-    connect();
-  }
+  connect();
 }
 
 /* ---------------- message handling ---------------- */
@@ -175,11 +192,14 @@ function handleMessage(msg) {
 
   if (msg.channel === "activeAssetCtx" || msg.channel === "activeSpotAssetCtx") {
     const d = msg.data || {};
-    if (d.coin && d.coin.toUpperCase() !== cfg.coin) return;
+    const coin = (d.coin || "").toUpperCase();
+    if (coin === "BTC") state.btcCtx = d.ctx || null;
+    if (coin && coin !== cfg.coin) { renderTreasury(); return; }
     state.ctx = d.ctx || null;
     state.ctxAt = Date.now();
     renderMark();
     renderValuation();
+    renderTreasury();
   } else if (msg.channel === "trades") {
     const arr = Array.isArray(msg.data) ? msg.data : [];
     for (const t of arr) ingestTrade(t);
@@ -210,6 +230,13 @@ function renderAll() {
   renderMark();
   renderValuation();
   renderTape();
+  renderTreasury();
+}
+
+/* Live BTC mark used to value the treasury stack. */
+function btcMark() {
+  if (cfg.coin === "BTC") return num(state.ctx && state.ctx.markPx);
+  return num(state.btcCtx && state.btcCtx.markPx);
 }
 
 function renderMark() {
@@ -308,6 +335,81 @@ function compactCount(n) {
   return String(n);
 }
 
+/* ---------------- treasury vs ETF flows ---------------- *
+ * Holdings: polled from CoinGecko (disclosure-driven, ~weekly cadence).
+ * Live value: holdings x live BTC mark from the WebSocket.
+ * Flow figures ($ bought / ETF net inflows): manual disclosure inputs.    */
+
+async function fetchTreasury() {
+  clearTimeout(state.treasuryTimer);
+  try {
+    const res = await fetch(CG_URL, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const list = Array.isArray(data.companies) ? data.companies : [];
+    const tick = cfg.company.toUpperCase();
+    const co =
+      list.find((c) => (c.symbol || "").toUpperCase().includes(tick)) ||
+      list.find((c) => (c.name || "").toUpperCase().includes(tick));
+    if (!co) throw new Error("company not found: " + cfg.company);
+    state.treasury = {
+      name: co.name || cfg.company,
+      holdings: num(co.total_holdings),
+      currentValueUsd: num(co.total_current_value_usd),
+      entryValueUsd: num(co.total_entry_value_usd),
+      pctSupply: num(co.percentage_of_total_supply),
+    };
+    state.treasuryAt = Date.now();
+    state.treasuryErr = false;
+  } catch (_) {
+    state.treasuryErr = true; // keep last good snapshot
+  } finally {
+    renderTreasury();
+    state.treasuryTimer = setTimeout(fetchTreasury, TREASURY_MS);
+  }
+}
+
+function renderTreasury() {
+  const t = state.treasury;
+  const px = btcMark();
+  const held = t ? t.holdings : NaN;
+
+  const liveValue = isFinite(held) && isFinite(px)
+    ? held * px
+    : (t ? t.currentValueUsd : NaN);
+  const pct = t && isFinite(t.pctSupply)
+    ? t.pctSupply
+    : (isFinite(held) ? (held / BTC_SUPPLY) * 100 : NaN);
+  const delta = cfg.baseBtc > 0 && isFinite(held) ? held - cfg.baseBtc : NaN;
+  const deltaVal = isFinite(delta) && isFinite(px) ? delta * px : NaN;
+
+  const mult = cfg.etfUsd > 0 ? cfg.saylorUsd / cfg.etfUsd : NaN;
+  const m = $("flowMultiple");
+  m.textContent = isFinite(mult) ? mult.toFixed(2) + "×" : "—×";
+  m.className = "bignum " + (isFinite(mult) ? (mult >= 1 ? "up" : "down") : "");
+
+  $("flowSummary").textContent =
+    `${fmtUSD(cfg.saylorUsd)} ${cfg.company} buys vs ${fmtUSD(cfg.etfUsd)} ETF net inflows · ${cfg.baseLabel}`;
+
+  $("mstrHeld").textContent = isFinite(held) ? `${fmtSize(held)} BTC` : "—";
+  $("mstrValue").textContent = fmtUSD(liveValue);
+  $("mstrPct").textContent = isFinite(pct) ? pct.toFixed(2) + "%" : "—";
+  $("mstrDelta").textContent = isFinite(delta)
+    ? `+${fmtSize(delta)} BTC · ${fmtUSD(deltaVal)}`
+    : "—";
+  $("saylorSpent").textContent = fmtUSD(cfg.saylorUsd);
+  $("etfNet").textContent = fmtUSD(cfg.etfUsd);
+
+  let age = "· source pending";
+  if (state.treasuryAt) {
+    age = "· holdings as of " + fmtTime(state.treasuryAt);
+    if (state.treasuryErr) age += " (stale — refresh failed)";
+  } else if (state.treasuryErr) {
+    age = "· holdings source unavailable";
+  }
+  $("treasuryAge").textContent = age;
+}
+
 function renderTape() {
   const now = Date.now();
   const recent = state.trades.filter((t) => now - t.t <= WINDOW_MS);
@@ -386,26 +488,56 @@ function applyControls() {
   saveConfig();
   syncInputs();
 
-  if (cfg.coin !== prevCoin) switchCoin(prevCoin);
-  else { renderValuation(); renderMark(); }
+  if (cfg.coin !== prevCoin) switchCoin();
+  else { renderValuation(); renderMark(); renderTreasury(); }
+}
+
+function applyTreasury() {
+  const prevCompany = cfg.company;
+  const company = $("companyInput").value.trim().toUpperCase();
+  const baseLabel = $("baseLabelInput").value.trim();
+  const baseBtc = parseNum($("baseBtcInput").value);
+  const saylorUsd = parseNum($("saylorUsdInput").value);
+  const etfUsd = parseNum($("etfUsdInput").value);
+
+  if (company) cfg.company = company;
+  cfg.baseLabel = baseLabel || cfg.baseLabel;
+  cfg.baseBtc = isFinite(baseBtc) && baseBtc > 0 ? baseBtc : 0;
+  if (isFinite(saylorUsd) && saylorUsd > 0) cfg.saylorUsd = saylorUsd;
+  if (isFinite(etfUsd) && etfUsd > 0) cfg.etfUsd = etfUsd;
+  saveConfig();
+  syncInputs();
+
+  if (cfg.company !== prevCompany) fetchTreasury();
+  else renderTreasury();
 }
 
 function syncInputs() {
   $("coinInput").value = cfg.coin;
   $("fdsInput").value = String(cfg.fds);
   $("refInput").value = String(cfg.ref);
+  $("companyInput").value = cfg.company;
+  $("baseLabelInput").value = cfg.baseLabel;
+  $("baseBtcInput").value = cfg.baseBtc ? String(cfg.baseBtc) : "";
+  $("saylorUsdInput").value = String(cfg.saylorUsd);
+  $("etfUsdInput").value = String(cfg.etfUsd);
 }
 
 function init() {
   syncInputs();
   $("applyBtn").addEventListener("click", applyControls);
+  $("applyTreasuryBtn").addEventListener("click", applyTreasury);
   document.querySelectorAll(".ctl input").forEach((el) => {
     el.addEventListener("keydown", (e) => { if (e.key === "Enter") applyControls(); });
   });
-  // Keep rolling-window stats fresh even when trades pause.
-  setInterval(renderTape, 1000);
+  document.querySelectorAll(".minictl input").forEach((el) => {
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") applyTreasury(); });
+  });
+  // Keep rolling-window stats + live treasury valuation fresh.
+  setInterval(() => { renderTape(); renderTreasury(); }, 1000);
   renderAll();
   connect();
+  fetchTreasury();
 }
 
 document.addEventListener("DOMContentLoaded", init);

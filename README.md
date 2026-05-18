@@ -10,6 +10,27 @@ connects directly to `wss://api.hyperliquid.xyz/ws` and renders:
   *Initial reference* price you set.
 - **Live Trade Tape** — streaming taker prints with a rolling 60s window:
   trades/min, volume/min, and buy vs. sell flow.
+- **Saylor (Strategy) vs BTC ETF Flows** — Strategy/MSTR Bitcoin holdings
+  polled from CoinGecko's free public-treasury API, revalued live off the
+  BTC mark price, plus the buys-vs-ETF-inflows multiple.
+
+### A note on what "live" means here
+
+The price feed is genuinely real-time. The treasury panel mixes two data
+*kinds* — be aware of the difference:
+
+| Metric | Cadence | Source |
+|--------|---------|--------|
+| BTC price / held value | real-time (every tick) | Hyperliquid WS |
+| Strategy BTC holdings | ~weekly (disclosure) | CoinGecko, polled every 5 min |
+| Saylor $ spent · ETF net inflows | end-of-day disclosure | **manual inputs** |
+
+There is no free, no-key, real-time feed for corporate-treasury purchases
+or ETF flows — those move on SEC filings and end-of-day fund reports, not a
+socket. So the holdings auto-refresh and the held value re-prices every
+tick, but the two flow figures are manual fields you update when new data
+drops; the multiple recomputes automatically. Defaults are seeded to
+$6.1B bought / $1.7B ETF net inflows (≈3.6×).
 
 ## Run it
 
