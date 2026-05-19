@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Live Financial Dashboard · Hyperliquid</title>
+  <link rel="preconnect" href="https://api.hyperliquid.xyz" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">LIVE DASHBOARD</span>
+    </div>
+    <div class="controls">
+      <label class="ctl">
+        <span>Coin</span>
+        <input id="coinInput" type="text" autocomplete="off" spellcheck="false" value="BTC" />
+      </label>
+      <label class="ctl">
+        <span>Estimated FDS</span>
+        <input id="fdsInput" type="text" inputmode="numeric" autocomplete="off" value="11870000000" />
+      </label>
+      <label class="ctl">
+        <span>Initial reference ($)</span>
+        <input id="refInput" type="text" inputmode="decimal" autocomplete="off" value="150" />
+      </label>
+      <button id="applyBtn" type="button">Apply</button>
+      <span id="conn" class="conn conn--off" title="connection status">
+        <span class="dot"></span><span class="conn-label">offline</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- HOW TO READ THIS -->
+    <section class="panel panel--wide explainer" id="howtoPanel">
+      <details open>
+        <summary>
+          <span class="panel-title">HOW TO READ THIS</span>
+          <span class="ex-hint">new here? plain-English guide</span>
+        </summary>
+
+        <p class="ex-intro">
+          This is a poster that watches a real money market and updates its
+          own numbers every few seconds — you don't type anything (except the
+          two hand-entered fields noted at the bottom).
+        </p>
+
+        <div class="ex-grid">
+          <div class="ex-card">
+            <h3>1 · Live Mark Price</h3>
+            <p>The price of <em>one</em> unit, right now. It changes by itself
+            as people buy and sell. <span class="up">Green = going up</span>,
+            <span class="down">red = going down</span>. It also shows
+            yesterday's price so you can compare.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>2 · Implied Valuation</h3>
+            <p>If one unit costs $X and there are N of them, this is what
+            <em>all of them together</em> are worth — price × count — shown as
+            one big number.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>3 · Live Trade Tape</h3>
+            <p>A live scoreboard of every buy and sell.
+            <span class="up">Green line = someone bought</span>,
+            <span class="down">red line = someone sold</span>. It also counts
+            how busy the last 60 seconds were.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>4 · Saylor vs BTC ETF Flows</h3>
+            <p>Compares how much Bitcoin Michael Saylor's company scooped up
+            vs how much money flowed into Bitcoin ETFs. The big "×" is how many
+            times bigger his pile is; its worth updates live with the price.</p>
+          </div>
+        </div>
+
+        <p class="ex-note">
+          <strong>Where the numbers come from:</strong> a live connection to
+          the Hyperliquid exchange (price &amp; trades) and CoinGecko
+          (holdings). Price and trades are <strong>truly instant</strong>.
+          Saylor's amount only changes when he announces it (about weekly), so
+          the two dollar figures in panel&nbsp;4 are typed in by hand and you
+          update them when new news drops.
+        </p>
+      </details>
+    </section>
+
+    <!-- LIVE MARK PRICE -->
+    <section class="panel" id="markPanel">
+      <div class="panel-head">
+        <span class="panel-title">LIVE MARK PRICE</span>
+        <span class="panel-sub" id="markUpdated">awaiting data</span>
+      </div>
+
+      <div class="bignum" id="markPx">$—</div>
+      <div class="bigsub">
+        <span id="mark24h" class="muted">24h —</span>
+        <span class="sep">·</span>
+        <span id="markVsRef" class="muted">vs init ref —</span>
+      </div>
+
+      <dl class="kv">
+        <div><dt>oracle</dt><dd id="oraclePx">—</dd></div>
+        <div><dt>mid</dt><dd id="midPx">—</dd></div>
+        <div><dt>premium</dt><dd id="premium">—</dd></div>
+        <div><dt>prev day</dt><dd id="prevDayPx">—</dd></div>
+        <div><dt>impact bid/ask</dt><dd id="impactPxs">—</dd></div>
+      </dl>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-k">Open Interest</span>
+          <span class="stat-v" id="openInterest">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">24h Volume</span>
+          <span class="stat-v" id="dayNtlVlm">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">Funding (1h)</span>
+          <span class="stat-v" id="funding1h">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-k">Funding (ann.)</span>
+          <span class="stat-v" id="fundingAnn">—</span>
+        </div>
+      </div>
+
+      <div class="footnote">
+        Day base vol <strong id="dayBaseVlm">—</strong>
+      </div>
+    </section>
+
+    <!-- IMPLIED VALUATION -->
+    <section class="panel" id="valPanel">
+      <div class="panel-head">
+        <span class="panel-title">IMPLIED VALUATION</span>
+        <span class="panel-sub">mark × FDS</span>
+      </div>
+
+      <div class="bignum" id="impliedVal">$—</div>
+      <div class="bigsub">
+        <span id="fdsLine" class="muted">FDS — sh</span>
+        <span class="sep">·</span>
+        <span id="initVal" class="muted">init → —</span>
+      </div>
+      <div class="bigsub">
+        <span id="valDelta" class="muted">Δ vs init —</span>
+      </div>
+
+      <dl class="kv kv--wide">
+        <div>
+          <dt>Estimated FDS</dt>
+          <dd><span id="fdsConfirm" class="confirm">confirmed: —</span></dd>
+        </div>
+        <div>
+          <dt>Initial reference ($)</dt>
+          <dd><span id="refConfirm" class="confirm">confirmed: —</span></dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- LIVE TRADE TAPE -->
+    <section class="panel panel--wide" id="tapePanel">
+      <div class="panel-head">
+        <span class="panel-title">LIVE TRADE TAPE</span>
+        <span class="panel-sub">streaming via Hyperliquid WebSocket
+          <span id="tapeLive" class="live live--off">● offline</span>
+        </span>
+      </div>
+
+      <div class="tape">
+        <aside class="lastprint" id="lastPrint">
+          <div class="lp-head">LAST PRINT</div>
+          <div class="lp-side" id="lpSide">— —</div>
+          <div class="lp-px" id="lpPx">$—</div>
+          <div class="lp-meta" id="lpMeta">— · —</div>
+          <div class="lp-time" id="lpTime">—</div>
+
+          <div class="lp-stats">
+            <div class="lp-stat">
+              <span class="lp-k">TRADES / 60S</span>
+              <span class="lp-v" id="tps">—</span>
+              <span class="lp-sub" id="tpsRate">— /min</span>
+            </div>
+            <div class="lp-stat">
+              <span class="lp-k">VOLUME / 60S</span>
+              <span class="lp-v" id="vps">—</span>
+              <span class="lp-sub" id="vpsRate">— /min</span>
+            </div>
+            <div class="lp-stat">
+              <span class="lp-k">BUY FLOW</span>
+              <span class="lp-v up" id="buyFlow">—</span>
+              <span class="lp-sub" id="buyFlowSz">— sh</span>
+            </div>
+            <div class="lp-stat">
+              <span class="lp-k">SELL FLOW</span>
+              <span class="lp-v down" id="sellFlow">—</span>
+              <span class="lp-sub" id="sellFlowSz">— sh</span>
+            </div>
+          </div>
+        </aside>
+
+        <div class="tapelist">
+          <table>
+            <thead>
+              <tr>
+                <th>TIME</th>
+                <th>SIDE</th>
+                <th class="num">PRICE</th>
+                <th class="num">SIZE</th>
+                <th class="num">NOTIONAL</th>
+                <th class="num">FLOW</th>
+              </tr>
+            </thead>
+            <tbody id="tapeBody">
+              <tr class="empty"><td colspan="6">waiting for trades…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SAYLOR (STRATEGY) vs BTC ETF FLOWS -->
+    <section class="panel panel--wide" id="treasuryPanel">
+      <div class="panel-head">
+        <span class="panel-title">SAYLOR (STRATEGY) vs BTC ETF FLOWS</span>
+        <span class="panel-sub">holdings via CoinGecko · value via live price
+          <span id="treasuryAge" class="muted">· source pending</span>
+        </span>
+      </div>
+
+      <div class="bignum" id="flowMultiple">—×</div>
+      <div class="bigsub">
+        <span id="flowSummary" class="muted">Saylor buys vs ETF net inflows —</span>
+      </div>
+
+      <div class="stats stats--3">
+        <div class="stat"><span class="stat-k">BTC Held</span><span class="stat-v" id="mstrHeld">—</span></div>
+        <div class="stat"><span class="stat-k">Held Value (live)</span><span class="stat-v up" id="mstrValue">—</span></div>
+        <div class="stat"><span class="stat-k">% of 21M Supply</span><span class="stat-v" id="mstrPct">—</span></div>
+        <div class="stat"><span class="stat-k">Bought Since Base</span><span class="stat-v" id="mstrDelta">—</span></div>
+        <div class="stat"><span class="stat-k">Saylor $ Spent</span><span class="stat-v up" id="saylorSpent">—</span></div>
+        <div class="stat"><span class="stat-k">BTC ETF Net Inflows</span><span class="stat-v" id="etfNet">—</span></div>
+      </div>
+
+      <div class="cfgrow">
+        <label class="minictl"><span>Company ticker</span><input id="companyInput" type="text" autocomplete="off" spellcheck="false" value="MSTR" /></label>
+        <label class="minictl"><span>Baseline label</span><input id="baseLabelInput" type="text" autocomplete="off" value="since Apr 2025" /></label>
+        <label class="minictl"><span>Baseline BTC held</span><input id="baseBtcInput" type="text" inputmode="numeric" autocomplete="off" placeholder="optional" /></label>
+        <label class="minictl"><span>Saylor $ bought</span><input id="saylorUsdInput" type="text" inputmode="numeric" autocomplete="off" value="6100000000" /></label>
+        <label class="minictl"><span>ETF net inflows ($)</span><input id="etfUsdInput" type="text" inputmode="numeric" autocomplete="off" value="1700000000" /></label>
+        <button id="applyTreasuryBtn" type="button">Apply</button>
+      </div>
+
+      <div class="footnote" id="treasuryNote">
+        ETF inflows &amp; $-spent are manual disclosure inputs — there is no free live feed. Holdings auto-refresh every 5&nbsp;min from CoinGecko; the held value re-prices every tick off the live BTC mark.
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    Market data via <code>wss://api.hyperliquid.xyz/ws</code> · treasury holdings via <code>api.coingecko.com</code>. Informational only — not financial advice.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
