@@ -34,6 +34,63 @@
   </header>
 
   <main class="grid">
+    <!-- HOW TO READ THIS -->
+    <section class="panel panel--wide explainer" id="howtoPanel">
+      <details open>
+        <summary>
+          <span class="panel-title">HOW TO READ THIS</span>
+          <span class="ex-hint">new here? plain-English guide</span>
+        </summary>
+
+        <p class="ex-intro">
+          This is a poster that watches a real money market and updates its
+          own numbers every few seconds — you don't type anything (except the
+          two hand-entered fields noted at the bottom).
+        </p>
+
+        <div class="ex-grid">
+          <div class="ex-card">
+            <h3>1 · Live Mark Price</h3>
+            <p>The price of <em>one</em> unit, right now. It changes by itself
+            as people buy and sell. <span class="up">Green = going up</span>,
+            <span class="down">red = going down</span>. It also shows
+            yesterday's price so you can compare.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>2 · Implied Valuation</h3>
+            <p>If one unit costs $X and there are N of them, this is what
+            <em>all of them together</em> are worth — price × count — shown as
+            one big number.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>3 · Live Trade Tape</h3>
+            <p>A live scoreboard of every buy and sell.
+            <span class="up">Green line = someone bought</span>,
+            <span class="down">red line = someone sold</span>. It also counts
+            how busy the last 60 seconds were.</p>
+          </div>
+
+          <div class="ex-card">
+            <h3>4 · Saylor vs BTC ETF Flows</h3>
+            <p>Compares how much Bitcoin Michael Saylor's company scooped up
+            vs how much money flowed into Bitcoin ETFs. The big "×" is how many
+            times bigger his pile is; its worth updates live with the price.</p>
+          </div>
+        </div>
+
+        <p class="ex-note">
+          <strong>Where the numbers come from:</strong> a live connection to
+          the Hyperliquid exchange (price &amp; trades) and CoinGecko
+          (holdings). Price and trades are <strong>truly instant</strong>.
+          Saylor's amount only changes when he announces it (about weekly), so
+          the two dollar figures in panel&nbsp;4 are typed in by hand and you
+          update them when new news drops.
+        </p>
+      </details>
+    </section>
+
     <!-- LIVE MARK PRICE -->
     <section class="panel" id="markPanel">
       <div class="panel-head">

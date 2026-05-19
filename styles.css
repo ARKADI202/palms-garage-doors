@@ -342,9 +342,59 @@ tbody tr.empty td { color: var(--muted-2); text-align: center; padding: 24px; }
 }
 .foot code { color: var(--muted); }
 
+/* ---------- explainer ---------- */
+.explainer details { width: 100%; }
+.explainer summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.explainer summary::-webkit-details-marker { display: none; }
+.explainer summary .panel-title { color: var(--up); }
+.explainer .ex-hint { font-size: 10px; letter-spacing: 1px; color: var(--muted-2); }
+.explainer details[open]  summary .ex-hint::after { content: " — click to hide"; }
+.explainer details:not([open]) summary .ex-hint::after { content: " — click to show"; }
+
+.ex-intro { margin: 16px 0 2px; font-size: 13px; line-height: 1.55; color: var(--text); }
+.ex-intro em, .ex-card em { font-style: normal; color: var(--text); }
+
+.ex-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.ex-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.ex-card h3 {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--up);
+  margin-bottom: 6px;
+}
+.ex-card p { font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+
+.ex-note {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.ex-note strong { color: var(--text); font-weight: 600; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 880px) {
   .grid { grid-template-columns: 1fr; }
+  .ex-grid { grid-template-columns: 1fr; }
   .tape { grid-template-columns: 1fr; }
   .bignum { font-size: 38px; }
   .stats, .stats--3 { grid-template-columns: repeat(2, 1fr); }
