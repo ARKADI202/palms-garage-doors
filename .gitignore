@@ -1,0 +1,12 @@
+# Secrets — never commit these
+.env
+
+# Telethon login session (logs in as your account — keep private)
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
