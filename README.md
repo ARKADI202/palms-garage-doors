@@ -63,9 +63,45 @@ The **first** run asks for your phone number and the login code Telegram sends
 you (and your 2FA password if you have one). After that it stays logged in via
 the local session file. Leave it running — keep notifying.
 
+## Run it 24/7 (unattended)
+
+The login step is interactive (Telegram texts you a code), so do it **once**
+first to create the session file, then start the always-on process.
+
+```bash
+python login.py    # type your phone number + the code Telegram sends
+```
+
+### Option A — Docker (recommended)
+
+```bash
+docker compose run --rm follow python login.py   # one-time login into the volume
+docker compose up -d                             # run headless, auto-restart
+docker compose logs -f                           # watch it
+```
+
+The session lives in a named volume, so it survives restarts and rebuilds. Your
+secrets come from `.env` and are never baked into the image.
+
+### Option B — systemd (Linux server)
+
+1. Clone the repo to `/opt/palms-garage-doors`, create the venv, fill in `.env`,
+   and run `python login.py` once (paths in the unit file assume this location —
+   edit `deploy/follow.service` if you use another).
+2. Install and start the service:
+
+```bash
+sudo cp deploy/follow.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now follow
+journalctl -u follow -f    # watch it
+```
+
+It restarts on failure and on reboot.
+
 ## Notes
 
 - Matching is by `@username`. If the person changes their username, update
   `TARGET_USERNAME` in `.env` and restart.
-- To run it continuously, keep it alive with `tmux`/`screen`, a `systemd`
-  service, or any always-on machine.
+- For a quick foreground run on your laptop, just `python follow.py` and keep
+  the terminal open (or use `tmux`/`screen`).

@@ -1,0 +1,16 @@
+[Unit]
+Description=Telegram follow notifier (palms-garage-doors)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust these two paths to where you cloned the repo:
+WorkingDirectory=/opt/palms-garage-doors
+ExecStart=/opt/palms-garage-doors/.venv/bin/python follow.py
+EnvironmentFile=/opt/palms-garage-doors/.env
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

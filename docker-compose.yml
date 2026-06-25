@@ -1,0 +1,13 @@
+services:
+  follow:
+    build: .
+    env_file: .env
+    environment:
+      # Keep the login session on the mounted volume, not inside the container.
+      SESSION_NAME: /data/follow_session
+    volumes:
+      - session:/data
+    restart: unless-stopped
+
+volumes:
+  session:
